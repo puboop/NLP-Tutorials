@@ -1,3 +1,7 @@
+# 环境依赖
+
+Python 3.7.16
+
 # Natural Language Processing Tutorial
 
 Tutorial in Chinese can be found in [mofanpy.com](https://mofanpy.com/tutorials/machine-learning/nlp/).
