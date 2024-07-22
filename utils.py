@@ -108,7 +108,7 @@ def _process_mrpc(dir="./MRPC", rows=None):
     i2v = {i: v for v, i in v2i.items()}
     for n in ["train", "test"]:
         for m in ["s1", "s2"]:
-            data[n][m+"id"] = [[v2i[v] for v in c.split(" ")] for c in data[n][m]]
+            data[n][m + "id"] = [[v2i[v] for v in c.split(" ")] for c in data[n][m]]
     return data, v2i, i2v
 
 
@@ -126,15 +126,16 @@ class MRPCData:
         self.xlen = np.array([
             [
                 len(data["train"]["s1id"][i]), len(data["train"]["s2id"][i])
-             ] for i in range(len(data["train"]["s1id"]))], dtype=int)
+            ] for i in range(len(data["train"]["s1id"]))], dtype=int)
         x = [
-            [self.v2i["<GO>"]] + data["train"]["s1id"][i] + [self.v2i["<SEP>"]] + data["train"]["s2id"][i] + [self.v2i["<SEP>"]]
+            [self.v2i["<GO>"]] + data["train"]["s1id"][i] + [self.v2i["<SEP>"]] + data["train"]["s2id"][i] + [
+                self.v2i["<SEP>"]]
             for i in range(len(self.xlen))
         ]
         self.x = pad_zero(x, max_len=self.max_len)
         self.nsp_y = data["train"]["is_same"][:, None]
 
-        self.seg = np.full(self.x.shape, self.num_seg-1, np.int32)
+        self.seg = np.full(self.x.shape, self.num_seg - 1, np.int32)
         for i in range(len(x)):
             si = self.xlen[i][0] + 2
             self.seg[i, :si] = 0
@@ -194,6 +195,7 @@ class Dataset:
         self.vocab = v2i.keys()
 
     def sample(self, n):
+        # 生成0-len(self.x)范围的数，维度为n
         b_idx = np.random.randint(0, len(self.x), n)
         bx, by = self.x[b_idx], self.y[b_idx]
         return bx, by
@@ -205,8 +207,11 @@ class Dataset:
 
 def process_w2v_data(corpus, skip_window=2, method="skip_gram"):
     all_words = [sentence.split(" ") for sentence in corpus]
+    # itertools.chain将 docs_words 中的所有单词列表展开为一个单一的迭代器。
     all_words = np.array(list(itertools.chain(*all_words)))
     # vocab sort by decreasing frequency for the negative sampling below (nce_loss).
+    # vocab 每个唯一的词
+    # v_count 计算词汇表 vocab 和每个词的出现次数 v_count。
     vocab, v_count = np.unique(all_words, return_counts=True)
     vocab = vocab[np.argsort(v_count)[::-1]]
 
@@ -215,18 +220,23 @@ def process_w2v_data(corpus, skip_window=2, method="skip_gram"):
     i2v = {i: v for v, i in v2i.items()}
 
     # pair data
+    # 存储训练对
     pairs = []
+    # 包含窗口范围内的所有相对位置（不包括0）
     js = [i for i in range(-skip_window, skip_window + 1) if i != 0]
-
+    # 循环每个文档
     for c in corpus:
         words = c.split(" ")
+        # 循环每个词出现的次数
         w_idx = [v2i[w] for w in words]
+        # Skip-Gram遍历每个单词 w_idx[i]，在窗口范围内生成 (中心词, 上下文词) 对。
         if method == "skip_gram":
             for i in range(len(w_idx)):
                 for j in js:
                     if i + j < 0 or i + j >= len(w_idx):
                         continue
                     pairs.append((w_idx[i], w_idx[i + j]))  # (center, context) or (feature, target)
+        # CBOW遍历每个单词 w_idx[i]，在窗口范围内生成 (上下文词列表, 中心词) 对
         elif method.lower() == "cbow":
             for i in range(skip_window, len(w_idx) - skip_window):
                 context = []
@@ -237,12 +247,15 @@ def process_w2v_data(corpus, skip_window=2, method="skip_gram"):
             raise ValueError
     pairs = np.array(pairs)
     print("5 example pairs:\n", pairs[:5])
+    # skip_gram 方法，将 pairs 拆分为输入 x 和输出 y，其中 x 是中心词，y 是上下文词
     if method.lower() == "skip_gram":
         x, y = pairs[:, 0], pairs[:, 1]
+    # cbow 方法，将 pairs 拆分为输入 x 和输出 y，其中 x 是上下文词列表，y 是中心词
     elif method.lower() == "cbow":
         x, y = pairs[:, :-1], pairs[:, -1]
     else:
         raise ValueError
+    # Dataset 对象，包含输入 x、输出 y、词汇到索引的映射 v2i 和索引到词汇的映射 i2v
     return Dataset(x, y, v2i, i2v)
 
 
