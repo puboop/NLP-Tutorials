@@ -190,6 +190,12 @@ class MRPCSingle:
 
 class Dataset:
     def __init__(self, x, y, v2i, i2v):
+        """
+        x: 所有的词
+        y: 词对应的次数
+        v2i: 词对应的次数 字典
+        i2v: 次数对应的词 字典
+        """
         self.x, self.y = x, y
         self.v2i, self.i2v = v2i, i2v
         self.vocab = v2i.keys()
@@ -202,6 +208,7 @@ class Dataset:
 
     @property
     def num_word(self):
+        # 总共有多少词
         return len(self.v2i)
 
 
@@ -228,20 +235,33 @@ def process_w2v_data(corpus, skip_window=2, method="skip_gram"):
     for c in corpus:
         words = c.split(" ")
         # 循环每个词出现的次数
+        """
+        v2i为所有单词的所出现的次数，为一个字典
+        words为当前文章中所有的单词
+        w_idx为当前文章中的单词在总文章中的单词中所出现的次数
+        """
         w_idx = [v2i[w] for w in words]
         # Skip-Gram遍历每个单词 w_idx[i]，在窗口范围内生成 (中心词, 上下文词) 对。
         if method == "skip_gram":
+            # 循环当前文章的所有单词数量
             for i in range(len(w_idx)):
+                # 获取每个词的上下文词的索引
                 for j in js:
-                    if i + j < 0 or i + j >= len(w_idx):
+                    if (i + j < 0) or (i + j >= len(w_idx)):
                         continue
+                    # w_idx[i]当前词
+                    # w_idx[i + j]当前词的上下文词
                     pairs.append((w_idx[i], w_idx[i + j]))  # (center, context) or (feature, target)
         # CBOW遍历每个单词 w_idx[i]，在窗口范围内生成 (上下文词列表, 中心词) 对
         elif method.lower() == "cbow":
+            # 通过上下文从skip_window开始计算上下文词，截至到 len(w_idx) - skip_window来计算中心词的个数
             for i in range(skip_window, len(w_idx) - skip_window):
                 context = []
+                # 得到每个词的上下文
                 for j in js:
+                    # 计算每个词之前的词与之后的词
                     context.append(w_idx[i + j])
+                # 将每个词的上下文放到全局上下文当中去
                 pairs.append(context + [w_idx[i]])  # (contexts, center) or (feature, target)
         else:
             raise ValueError

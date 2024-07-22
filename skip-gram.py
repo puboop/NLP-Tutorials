@@ -34,7 +34,9 @@ corpus = [
 class SkipGram(keras.Model):
     def __init__(self, v_dim, emb_dim):
         super().__init__()
+        # 为所有的词的总数
         self.v_dim = v_dim
+        # 定义一个嵌入层，用于将离散的词汇索引映射为连续的向量表示
         self.embeddings = keras.layers.Embedding(
             input_dim=v_dim, output_dim=emb_dim,       # [n_vocab, emb_dim]
             embeddings_initializer=keras.initializers.RandomNormal(0., 0.1),
@@ -58,7 +60,19 @@ class SkipGram(keras.Model):
     # negative sampling: take one positive label and num_sampled negative labels to compute the loss
     # in order to reduce the computation of full softmax
     def loss(self, x, y, training=None):
+        # 计算输入 x 的嵌入向量
         embedded = self.call(x, training)
+        """
+        tf.expand_dims(y, axis=1)：将目标标签 y 扩展一个维度，以匹配 nce_loss 的输入要求。
+        tf.nn.nce_loss：计算负采样损失。
+            weights=self.nce_w：NCE的权重矩阵。
+            biases=self.nce_b：NCE的偏置向量。
+            labels=tf.expand_dims(y, axis=1)：目标标签。
+            inputs=embedded：输入嵌入向量。
+            num_sampled=5：负采样数量，表示每个正样本配5个负样本。
+            num_classes=self.v_dim：词汇表大小
+        返回平均的负采样损失。
+        """
         return tf.reduce_mean(
             tf.nn.nce_loss(
                 weights=self.nce_w, biases=self.nce_b, labels=tf.expand_dims(y, axis=1),
