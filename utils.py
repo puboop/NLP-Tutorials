@@ -14,31 +14,43 @@ class DateData:
         np.random.seed(1)
         self.date_cn = []
         self.date_en = []
+        # 随机生成时间戳
         for timestamp in np.random.randint(143835585, 2043835585, n):
             date = datetime.datetime.fromtimestamp(timestamp)
-            self.date_cn.append(date.strftime("%y-%m-%d"))
-            self.date_en.append(date.strftime("%d/%b/%Y"))
+            self.date_cn.append(date.strftime("%y-%m-%d"))  # 年（后两位），月，日
+            self.date_en.append(date.strftime("%d/%b/%Y"))  # 日，月（英文），年（整个年份）
         self.vocab = set(
-            [str(i) for i in range(0, 10)] + ["-", "/", "<GO>", "<EOS>"] + [
-                i.split("/")[1] for i in self.date_en])
+            [str(i) for i in range(0, 10)]
+            + ["-", "/", "<GO>", "<EOS>"]  # 特殊字符，以及开始标识，结束标识
+            + [i.split("/")[1] for i in self.date_en]  # 得到所有的月（英文）
+        )  # 整个特征为，0-9（字符串格式），生成的相应的月份（英文）
+        # 生成相应的key对应的索引值（也就是下标值）
         self.v2i = {v: i for i, v in enumerate(sorted(list(self.vocab)), start=1)}
         self.v2i["<PAD>"] = PAD_ID
         self.vocab.add("<PAD>")
+        # 生成值对应key，也就是下标值对应key
         self.i2v = {i: v for v, i in self.v2i.items()}
+        # x为所有的时间key对应的索引
+        # y为每个时间的开头部分以及结尾部分
         self.x, self.y = [], []
         for cn, en in zip(self.date_cn, self.date_en):
-            self.x.append([self.v2i[v] for v in cn])
-            self.y.append(
-                [self.v2i["<GO>"], ] + [self.v2i[v] for v in en[:3]] + [
-                    self.v2i[en[3:6]], ] + [self.v2i[v] for v in en[6:]] + [
-                    self.v2i["<EOS>"], ])
+            self.x.append([self.v2i[v] for v in cn])  # 将每个时间key对应的value获取出来
+            self.y.append([self.v2i["<GO>"], ]  # 开始标识
+                          + [self.v2i[v] for v in en[:3]]  # 获取日期以及/
+                          + [self.v2i[en[3:6]], ]  # 获取月份
+                          + [self.v2i[v] for v in en[6:]]  # 获取年份
+                          + [self.v2i["<EOS>"], ]  # 结束标识
+                          )
         self.x, self.y = np.array(self.x), np.array(self.y)
         self.start_token = self.v2i["<GO>"]
         self.end_token = self.v2i["<EOS>"]
 
     def sample(self, n=64):
+        # 随机获取从0到整个时间索引的长度的序列，大小为n
         bi = np.random.randint(0, len(self.x), size=n)
+        # 取出x对应的索引，以及y对应的索引
         bx, by = self.x[bi], self.y[bi]
+        # 获取到解码长度
         decoder_len = np.full((len(bx),), by.shape[1] - 1, dtype=np.int32)
         return bx, by, decoder_len
 
@@ -52,6 +64,7 @@ class DateData:
 
     @property
     def num_word(self):
+        # 获取整个特征的个数
         return len(self.vocab)
 
 
