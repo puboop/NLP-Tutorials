@@ -28,7 +28,7 @@ class DateData:
         self.v2i = {v: i for i, v in enumerate(sorted(list(self.vocab)), start=1)}
         self.v2i["<PAD>"] = PAD_ID
         self.vocab.add("<PAD>")
-        # 生成值对应key，也就是下标值对应key
+        # 生成值对应key，也就是下标值对应key 用于将数字转换为字符
         self.i2v = {i: v for v, i in self.v2i.items()}
         # x为所有的时间key对应的索引
         # y为每个时间的开头部分以及结尾部分
@@ -55,6 +55,7 @@ class DateData:
         return bx, by, decoder_len
 
     def idx2str(self, idx):
+        """将预测结果转为字符串形式"""
         x = []
         for i in idx:
             x.append(self.i2v[i])
