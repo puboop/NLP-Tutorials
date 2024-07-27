@@ -56,7 +56,8 @@ class CNNTranslation(keras.Model):
         # predict decoder
         self.decoder_eval = tfa.seq2seq.BasicDecoder(
             cell=self.decoder_cell,
-            sampler=tfa.seq2seq.sampler.GreedyEmbeddingSampler(),  # sampler for predict
+            # sampler=tfa.seq2seq.sampler.GreedyEmbeddingSampler(),  # sampler for predict
+            sampler=tfa.seq2seq.sampler.GreedyEmbeddingSampler(self.dec_embeddings),  # sampler for predict
             output_layer=decoder_dense
         )
 
