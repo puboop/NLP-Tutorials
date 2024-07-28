@@ -1,6 +1,6 @@
 # 环境依赖
 
-Python 3.7.16
+Python 3.6.13
 
 # Natural Language Processing Tutorial
 
@@ -34,6 +34,7 @@ And the a [pytorch version of this NLP](/pytorch) tutorial made by [@ruifanxu](h
 ```shell script
 $ git clone https://github.com/MorvanZhou/NLP-Tutorials
 $ cd NLP-Tutorials/
+$ conda create --name nlp_study_3_6 python=3.6.13 -y
 $ sudo pip3 install -r requirements.txt
 ```
 
