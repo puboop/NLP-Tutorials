@@ -70,6 +70,10 @@ class DateData:
 
 
 def pad_zero(seqs, max_len):
+    """
+    用于将一组序列进行填充，使它们的长度统一为指定的最大长度 max_len。
+    填充的方式是在序列的末尾补上特定的填充值 PAD_ID。这是在自然语言处理和机器学习中处理变长序列时常用的预处理方法
+    """
     padded = np.full((len(seqs), max_len), fill_value=PAD_ID, dtype=np.long)
     for i, seq in enumerate(seqs):
         padded[i, :len(seq)] = seq
