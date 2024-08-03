@@ -112,12 +112,16 @@ def _process_mrpc(dir="./MRPC", rows=None):
         k = "train" if "train" in f else "test"
         data[k] = {"is_same": df.iloc[:, 0].values, "s1": df["#1 String"].values, "s2": df["#2 String"].values}
     vocab = set()
+    # 将所有字符进行唯一性处理
     for n in ["train", "test"]:
         for m in ["s1", "s2"]:
+            # 取出训练模式下的相应数据
             for i in range(len(data[n][m])):
+                # 字符串处理
                 data[n][m][i] = _text_standardize(data[n][m][i].lower())
                 cs = data[n][m][i].split(" ")
                 vocab.update(set(cs))
+    # 对每个词进行词索引处理
     v2i = {v: i for i, v in enumerate(sorted(vocab), start=1)}
     v2i["<PAD>"] = PAD_ID
     v2i["<MASK>"] = len(v2i)
@@ -126,6 +130,7 @@ def _process_mrpc(dir="./MRPC", rows=None):
     i2v = {i: v for v, i in v2i.items()}
     for n in ["train", "test"]:
         for m in ["s1", "s2"]:
+            # 词索引id
             data[n][m + "id"] = [[v2i[v] for v in c.split(" ")] for c in data[n][m]]
     return data, v2i, i2v
 
@@ -136,32 +141,52 @@ class MRPCData:
 
     def __init__(self, data_dir="./MRPC/", rows=None, proxy=None):
         maybe_download_mrpc(save_dir=data_dir, proxy=proxy)
+        # data: 包含训练和测试数据。
+        # self.v2i: 词汇表，词到索引的映射。
+        # self.i2v: 词汇表，索引到词的映射。
         data, self.v2i, self.i2v = _process_mrpc(data_dir, rows)
-        self.max_len = max(
-            [len(s1) + len(s2) + 3 for s1, s2 in zip(
-                data["train"]["s1id"] + data["test"]["s1id"], data["train"]["s2id"] + data["test"]["s2id"])])
+        # 计算最大长度
+        # 计算训练和测试数据中序列的最大长度，考虑了句子分隔符（<SEP>）和开始标记（<GO>）。
+        # len(s1): 第一个句子的长度。
+        # len(s2): 第二个句子的长度。
+        # + 3: 加上<GO>和两个<SEP>标记。
+        self.max_len = max([len(s1) + len(s2) + 3
+                            for s1, s2 in zip(data["train"]["s1id"] + data["test"]["s1id"],
+                                              data["train"]["s2id"] + data["test"]["s2id"])])
 
-        self.xlen = np.array([
-            [
-                len(data["train"]["s1id"][i]), len(data["train"]["s2id"][i])
-            ] for i in range(len(data["train"]["s1id"]))], dtype=int)
-        x = [
-            [self.v2i["<GO>"]] + data["train"]["s1id"][i] + [self.v2i["<SEP>"]] + data["train"]["s2id"][i] + [
-                self.v2i["<SEP>"]]
-            for i in range(len(self.xlen))
-        ]
+        # 计算每对句子的长度。
+        # data["train"]["s1id"]: 训练数据中的第一个句子ID序列。
+        # data["train"]["s2id"]: 训练数据中的第二个句子ID序列。
+        self.xlen = np.array([[len(data["train"]["s1id"][i]), len(data["train"]["s2id"][i])]
+                              for i in range(len(data["train"]["s1id"]))], dtype=int)
+        # 计算每段话的长度
+        # 为每对句子生成输入序列，添加特殊标记<GO>和<SEP>。
+        x = [[self.v2i["<GO>"]]
+             + data["train"]["s1id"][i]
+             + [self.v2i["<SEP>"]]
+             + data["train"]["s2id"][i]
+             + [self.v2i["<SEP>"]]
+             for i in range(len(self.xlen))]
+        # 长度填充
         self.x = pad_zero(x, max_len=self.max_len)
+        # self.nsp_y: 对应的标签，是否为同义句。
         self.nsp_y = data["train"]["is_same"][:, None]
 
+        # 填充形状为self.x.shape 填充数为self.num_seg-1
+        # self.seg: 段信息，指定每个词的段（句子）编号。
+        # self.num_seg: 段的数量。
+        # si: 第一个句子的结束位置。
+        # si_: 第二个句子的结束位置。
         self.seg = np.full(self.x.shape, self.num_seg - 1, np.int32)
         for i in range(len(x)):
             si = self.xlen[i][0] + 2
             self.seg[i, :si] = 0
             si_ = si + self.xlen[i][1] + 1
             self.seg[i, si:si_] = 1
-
-        self.word_ids = np.array(list(set(self.i2v.keys()).difference(
-            [self.v2i[v] for v in ["<PAD>", "<MASK>", "<SEP>"]])))
+        # 生成词ID的集合，排除填充标记<PAD>、掩码标记<MASK>和分隔标记<SEP>。
+        self.word_ids = np.array(list(
+            set(self.i2v.keys()).difference([self.v2i[v] for v in ["<PAD>", "<MASK>", "<SEP>"]])
+        ))
 
     def sample(self, n):
         bi = np.random.randint(0, self.x.shape[0], size=n)
@@ -183,16 +208,14 @@ class MRPCSingle:
     def __init__(self, data_dir="./MRPC/", rows=None, proxy=None):
         maybe_download_mrpc(save_dir=data_dir, proxy=proxy)
         data, self.v2i, self.i2v = _process_mrpc(data_dir, rows)
-
+        # 最大长度计算
         self.max_len = max([len(s) + 2 for s in data["train"]["s1id"] + data["train"]["s2id"]])
-        x = [
-            [self.v2i["<GO>"]] + data["train"]["s1id"][i] + [self.v2i["<SEP>"]]
-            for i in range(len(data["train"]["s1id"]))
-        ]
-        x += [
-            [self.v2i["<GO>"]] + data["train"]["s2id"][i] + [self.v2i["<SEP>"]]
-            for i in range(len(data["train"]["s2id"]))
-        ]
+        # 取出每个词的词索引
+        x = [[self.v2i["<GO>"]] + data["train"]["s1id"][i] + [self.v2i["<SEP>"]]
+             for i in range(len(data["train"]["s1id"]))]
+        x += [[self.v2i["<GO>"]] + data["train"]["s2id"][i] + [self.v2i["<SEP>"]]
+              for i in range(len(data["train"]["s2id"]))]
+        # 不足的填充0
         self.x = pad_zero(x, max_len=self.max_len)
         self.word_ids = np.array(list(set(self.i2v.keys()).difference([self.v2i["<PAD>"]])))
 
