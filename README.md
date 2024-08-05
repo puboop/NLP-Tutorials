@@ -2,6 +2,8 @@
 
 Python 3.6.13
 
+[github仓库](https://github.com/puboop/NLP-Tutorials)
+
 # Natural Language Processing Tutorial
 
 Tutorial in Chinese can be found in [mofanpy.com](https://mofanpy.com/tutorials/machine-learning/nlp/).
